@@ -2,12 +2,13 @@
 // C++ Headers
 #include <string>
 #include <iostream>
+#include <exception>
 
 // OpenGL / glew Headers
 #define GL3_PROTOTYPES 1
 #include <GL/glew.h>
-#include <SOIL/SOIL.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 // Other includes
 #include "shader.h"
@@ -100,6 +101,44 @@ bool Init() {
 	return true;
 }
 
+bool IsSurfaceRGBA8888(const SDL_Surface* surface) {
+	return (surface->format->Rmask == 0xFF000000 &&
+			surface->format->Gmask == 0x00FF0000 &&
+			surface->format->Bmask == 0x0000FF00 &&
+			surface->format->Amask == 0x000000FF);
+}
+
+SDL_Surface* EnsureSurfaceRGBA8888(SDL_Surface* surface) {
+	// Just return if it is already RGBA8888
+	if (IsSurfaceRGBA8888(surface)) {
+		return surface;
+	}
+
+	// Convert the surface into a new one that is RGBA8888
+	//std::cout << "Converting surface to RGBA8888 format." << std::endl;
+	SDL_Surface* new_surface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0);
+	if (new_surface == nullptr) {
+		throw "Failed to convert surface to RGBA8888 format";
+	}
+	SDL_FreeSurface(surface);
+
+	// Make sure the new surface is RGBA8888
+	if (! IsSurfaceRGBA8888(new_surface)) {
+		throw "Failed to convert surface to RGBA8888 format";
+	}
+	return new_surface;
+}
+
+SDL_Surface* LoadSurface(std::string file_name) {
+	SDL_Surface* surface = IMG_Load(file_name.c_str());
+	if (surface == nullptr) {
+		throw "Failed to load surface";
+	}
+	surface = EnsureSurfaceRGBA8888(surface);
+
+	return surface;
+}
+
 void RunGame() {
 	bool loop = true;
 
@@ -160,13 +199,13 @@ void RunGame() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// Load, create texture and generate mipmaps
-	int width, height;
 
-	unsigned char* image = SOIL_load_image("container.jpg", &width, &height, 0, SOIL_LOAD_RGB);
+	SDL_Surface* surface = LoadSurface("container.jpg");
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, surface->pixels);
+
 	glGenerateMipmap(GL_TEXTURE_2D);
-	SOIL_free_image_data(image);
+	SDL_FreeSurface(surface);
 	glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess up our texture.
 	// ===================
 	// Texture 2
@@ -180,10 +219,10 @@ void RunGame() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// Load, create texture and generate mipmaps
-	image = SOIL_load_image("awesomeface.png", &width, &height, 0, SOIL_LOAD_RGB);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	surface = LoadSurface("awesomeface.png");
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, surface->pixels);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	SOIL_free_image_data(image);
+	SDL_FreeSurface(surface);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	while (loop) {
