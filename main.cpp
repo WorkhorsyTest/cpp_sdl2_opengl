@@ -90,6 +90,7 @@ SDL_Surface* LoadSurface(std::string file_name) {
 void render() {
 	SDL_Event event;
 	while ( SDL_PollEvent( &event ) ) {
+		#ifdef EMSCRIPTEN
 		if ( event.type == SDL_KEYDOWN || event.type == SDL_KEYUP ) {
 			emscripten_cancel_main_loop();
 			SDL_Quit();
@@ -97,6 +98,7 @@ void render() {
 			emscripten_cancel_main_loop();
 			SDL_Quit();
 		}
+		#endif
 	}
 
 	glClear(GL_COLOR_BUFFER_BIT);
